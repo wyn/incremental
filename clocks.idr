@@ -64,7 +64,7 @@ no_prf cont Refl = cont Refl
     decEq (CAny x) (CAny y) = case (decEq x y) of
                 Yes prf => Yes (cong prf)
                 No cont => No (no_prf cont)
-    decEq x y = believe_me x y
+    decEq x y = No (believe_me x y)
     
 Clock : Type
 Clock = CStream Bool
