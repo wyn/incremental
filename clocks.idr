@@ -39,39 +39,49 @@ tail_bad cont Refl = cont Refl
     decEq (Cons x xs) (Cons y ys) with (decEq x y) 
       decEq (Cons x xs) (Cons x ys)   | Yes Refl with (decEq xs ys) 
         decEq (Cons x xs) (Cons x xs) | Yes Refl | Yes Refl = Yes Refl
-        decEq (Cons x xs) (Cons x ys) | Yes Refl | No cont = No (tail_bad cont)
+        decEq (Cons x xs) (Cons x ys) | Yes Refl | No cont  = No (tail_bad cont)
 
-      decEq (Cons x xs) (Cons y ys)   | No cont = No (head_bad cont)
+      decEq (Cons x xs) (Cons y ys)   | No cont             = No (head_bad cont)
 
-
-
-        
     
 stream_unfold : (x : CStream a) -> (x = (Cons (hd x) (tl x)))
-stream_unfold (Cons x y) = Refl
+stream_unfold (Cons x xs) = Refl
 
 
--- data SamplElt : (a : Type) -> Bool -> Type where
---   CNone : SamplElt a False
---   CAny  : a -> SamplElt a True
---   CFail : SamplElt a True
-  
--- Clock : Type
--- Clock = CStream Bool
-
--- data SamplStr : (a : Type) -> (c : Clock) -> Type where
---   SPCons : (SamplElt a (hd c)) -> (SamplStr a (tl c)) -> SamplStr a c
+data SamplElt : (a : Type) -> Bool -> Type where
+  CNone : SamplElt a False
+  CAny  : a -> SamplElt a True
+  CFail : SamplElt a True
 
 
--- sp_hd : SamplStr a c -> SamplElt a (hd c)
--- sp_hd (SPCons x _) = x
+no_prf : (cont : (x = y) -> Void) -> (CAny x = CAny y) -> Void
+no_prf cont Refl = cont Refl
 
--- sp_tl : SamplStr a c -> SamplStr a (tl c)
--- sp_tl (SPCons _ y) = y
+(DecEq a) => DecEq (SamplElt a bl) where
+   
+    decEq CNone CNone = Yes Refl
+    decEq CFail CFail = Yes Refl
+    decEq (CAny x) (CAny y) = case (decEq x y) of
+                Yes prf => Yes (cong prf)
+                No cont => No (no_prf cont)
+    decEq x y = believe_me x y
+    
+Clock : Type
+Clock = CStream Bool
+
+data SamplStr : (a : Type) -> (c : Clock) -> Type where
+  SPCons : (SamplElt a (hd c)) -> (SamplStr a (tl c)) -> SamplStr a c
 
 
--- unfold_samplStr : (c : Clock) -> (s : SamplStr a c) -> (s = (SPCons (sp_hd s) (sp_tl s)))
--- unfold_samplStr c (SPCons x y) = Refl
+sp_hd : SamplStr a c -> SamplElt a (hd c)
+sp_hd (SPCons x _) = x
+
+sp_tl : SamplStr a c -> SamplStr a (tl c)
+sp_tl (SPCons _ y) = y
+
+
+unfold_samplStr : (c : Clock) -> (s : SamplStr a c) -> (s = (SPCons (sp_hd s) (sp_tl s)))
+unfold_samplStr c (SPCons x y) = Refl
 
 
 
