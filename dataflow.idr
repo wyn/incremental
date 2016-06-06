@@ -1,5 +1,7 @@
 module Dataflow
-
+-- from paper 
+-- The Essence of Dataflow Programming. 
+-- Tarmo Uustalu and Varmo Vene. 2006
 import Control.Comonad (Comonad(..))
 
 
