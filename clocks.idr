@@ -36,9 +36,9 @@ stream_unfold (Cons x y) = Refl
 
 
 data SamplElt : (a : Type) -> Bool -> Type where
-  None : SamplElt a False
-  Any  : a -> SamplElt a True
-  Fail : SamplElt a True
+  CNone : SamplElt a False
+  CAny  : a -> SamplElt a True
+  CFail : SamplElt a True
   
 Clock : Type
 Clock = CStream Bool
@@ -79,5 +79,16 @@ sp_eq_clock_coerce {a} {c1} {c2} (EqStream head_prf tail_prf) (SPCons x xs) = be
   -- let prf_elt = prf_samplElt a c1 c2 head_prf in 
   --   case (sp_eq_clock_coerce tail_prf xs) of
   --     SpEqProof inner_head_prf inner_tail_prf => 
-  --       SpEqProof ?stuff_head ?stuff_tail
-                                                                      
+  --       SpEqProof ?stuff_head ?
+  
+
+-- is_fail : (s : SamplElt a b) -> Dec (s = the (SamplElt a True) CFail)
+-- is_fail CFail = Yes Refl
+-- is_fail _ = No ?rest1
+
+-- data SpWf : (SamplStr a c) -> Type where
+--   SpWfProof : (s : SamplStr a c) -> 
+--               (is_no_fail (sp_hd s)) ->
+--               (sp_wf (sp_tl s)) -> sp_wf s
+  
+ 
