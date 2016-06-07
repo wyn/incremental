@@ -23,7 +23,6 @@ hd (Cons x xs) = x
 tl : CStream a -> CStream a
 tl (Cons x xs) = xs
 
-
 cconst : a -> CStream a 
 cconst x = Cons x (Delay (cconst x))
 
@@ -44,8 +43,8 @@ tail_bad cont Refl = cont Refl
 
 
 stream_unfold : (x : CStream a) -> (x = (Cons (hd x) (tl x)))
-stream_unfold (Cons x (Delay xs)) = let prf = (stream_unfold xs) in 
-                                    ?stream_unfold_rhs_1 prf
+stream_unfold (Cons x xs) = ?stream_unfold_rhs_1
+
 
 data SamplElt : (a : Type) -> Bool -> Type where
   CNone : SamplElt a False
@@ -62,7 +61,7 @@ bad_any_prf cont Refl = cont Refl
     decEq (CAny x) (CAny y) = case (decEq x y) of
                 Yes prf => Yes (cong prf)
                 No cont => No (bad_any_prf cont)
-    decEq x y = No (believe_me x y)
+    decEq x y = No (believe_me x y) -- TODO
     
 Clock : Type
 Clock = CStream Bool
@@ -78,53 +77,54 @@ sp_tl : SamplStr a c -> SamplStr a (tl c)
 sp_tl (SPCons _ xs) = xs
 
 
--- unfold_samplStr : (c : Clock) -> (s : SamplStr a c) -> (s = (SPCons (sp_hd s) (sp_tl s)))
--- unfold_samplStr c (SPCons x xs) = Refl
+unfold_samplStr : (c : Clock) -> (s : SamplStr a c) -> (s = (SPCons (sp_hd s) (sp_tl s)))
+unfold_samplStr c (SPCons x xs) = Refl
 
--- bad_head_stream : (cont : (x = y) -> Void) -> 
---                   (SPCons x xs = SPCons y ys) -> Void
--- bad_head_stream cont Refl = cont Refl
+bad_head_stream : (cont : (x = y) -> Void) -> 
+                  (SPCons x xs = SPCons y ys) -> Void
+bad_head_stream cont Refl = cont Refl
 
--- bad_tail_stream : (cont : (xs = ys) -> Void) -> 
---                   (SPCons x xs = SPCons x ys) -> Void
--- bad_tail_stream cont Refl = cont Refl
-
-
--- (DecEq a) => DecEq (SamplStr a c) where
---      decEq (SPCons x xs) (SPCons y ys) with (decEq x y) 
---       decEq (SPCons x xs) (SPCons y ys) | No cont = No (bad_head_stream cont)
---       decEq (SPCons x xs) (SPCons x ys) | Yes Refl with (decEq xs ys) 
---         decEq (SPCons x xs) (SPCons x xs) | Yes Refl | Yes Refl = Yes Refl
---         decEq (SPCons x xs) (SPCons x ys) | Yes Refl | No cont  = No (bad_tail_stream cont)
+bad_tail_stream : (cont : (xs = ys) -> Void) -> 
+                  (SPCons x xs = SPCons x ys) -> Void
+bad_tail_stream cont Refl = cont Refl
 
 
--- prf_samplElt : (a : Type ) -> (c1 : Clock) -> (c2 : Clock) -> (head_prf : hd c1 = hd c2) -> 
---                (SamplElt a (hd c1) = SamplElt a (hd c2))
--- prf_samplElt a c1 c2 head_prf = rewrite head_prf in Refl
+(DecEq a) => DecEq (SamplStr a c) where
+     decEq (SPCons x xs) (SPCons y ys) with (decEq x y) 
+      decEq (SPCons x xs) (SPCons y ys) | No cont = No (bad_head_stream cont)
+      decEq (SPCons x xs) (SPCons x ys) | Yes Refl with (decEq xs ys) 
+        decEq (SPCons x xs) (SPCons x xs) | Yes Refl | Yes Refl = Yes Refl
+        decEq (SPCons x xs) (SPCons x ys) | Yes Refl | No cont  = No (bad_tail_stream cont)
 
 
--- head_coerce : (head_prf : hd c1 = hd c2) -> (x : SamplElt a (hd c1)) -> SamplElt a (hd c2)
--- head_coerce {a} {c1} {c2} head_prf x = let prf = prf_samplElt a c1 c2 head_prf in 
---                                        rewrite sym $ prf in x
+prf_samplElt : (a : Type ) -> (c1 : Clock) -> (c2 : Clock) -> 
+               (head_prf : hd c1 = hd c2) -> 
+               (SamplElt a (hd c1) = SamplElt a (hd c2))
+prf_samplElt a c1 c2 head_prf = rewrite head_prf in Refl
 
--- clock_coerce : (prf : c1 = c2) -> SamplStr a c1 -> SamplStr a c2
--- clock_coerce Refl x = x
 
--- sp_eq_clock_coerce : (prf : (c1 = c2)) -> (s : SamplStr a c1) -> (s = (clock_coerce prf s))
--- sp_eq_clock_coerce Refl s = Refl
+head_coerce : (head_prf : hd c1 = hd c2) -> (x : SamplElt a (hd c1)) -> SamplElt a (hd c2)
+head_coerce {a} {c1} {c2} head_prf x = let prf = prf_samplElt a c1 c2 head_prf in 
+                                       rewrite sym $ prf in x
 
--- data WellFormed : (s : SamplStr a c) -> Type where
---   HeadIsAny : ((sp_hd s) = (CAny a)) -> WellFormed (sp_tl s) -> WellFormed s
---   HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
+clock_coerce : (prf : c1 = c2) -> SamplStr a c1 -> SamplStr a c2
+clock_coerce Refl x = x
+
+sp_eq_clock_coerce : (prf : (c1 = c2)) -> (s : SamplStr a c1) -> (s = (clock_coerce prf s))
+sp_eq_clock_coerce Refl s = Refl
+
+data WellFormed : (s : SamplStr a c) -> Type where
+  HeadIsAny : ((sp_hd s) = (CAny a)) -> WellFormed (sp_tl s) -> WellFormed s
+  HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
   
 
--- elt_const : a -> (b : Bool) -> SamplElt a b
--- elt_const x clk_val = case clk_val of 
---   True  => CAny x
---   False => CNone
+elt_const : a -> (b : Bool) -> SamplElt a b
+elt_const x clk_val = case clk_val of 
+  True  => CAny x
+  False => CNone
 
--- sp_const : a -> (clk : Clock) -> SamplStr a clk
--- sp_const x (Cons c cs) = SPCons (elt_const x c) (sp_const x cs)
+sp_const : a -> (clk : Clock) -> SamplStr a clk
+sp_const x (Cons c cs) = SPCons (elt_const x c) (sp_const x cs)
 
 -- sp_const_wellformed : (x : a) -> (clk : Clock) -> WellFormed (sp_const x clk)
 -- sp_const_wellformed x (Cons c cs) = believe_me x (Cons c cs) 
@@ -134,21 +134,21 @@ sp_tl (SPCons _ xs) = xs
 --   -- (sp_const_wellformed x clk)                 | (HeadIsNone Refl rest) = ?sp_const_wellformed_rhs_2
 
 
--- elt_extend : (SamplElt (a -> b) clk_value) -> (SamplElt a clk_value) -> (SamplElt b clk_value)
--- elt_extend CNone    _        = CNone
--- elt_extend (CAny f) (CAny x) = CAny (f x)
--- elt_extend _        CFail    = CFail 
--- elt_extend CFail    _        = CFail
+elt_extend : (SamplElt (a -> b) clk_value) -> (SamplElt a clk_value) -> (SamplElt b clk_value)
+elt_extend CNone    _        = CNone
+elt_extend (CAny f) (CAny x) = CAny (f x)
+elt_extend _        CFail    = CFail 
+elt_extend CFail    _        = CFail
 
--- sp_extend : (SamplStr (a -> b) clk_value) -> (SamplStr a clk_value) -> (SamplStr b clk_value)
--- sp_extend (SPCons f fs) (SPCons x xs) = SPCons (elt_extend f x) (sp_extend fs xs)
+sp_extend : (SamplStr (a -> b) clk_value) -> (SamplStr a clk_value) -> (SamplStr b clk_value)
+sp_extend (SPCons f fs) (SPCons x xs) = SPCons (elt_extend f x) (sp_extend fs xs)
 
 
--- sp_extend_wellformed : (fs : SamplStr (a->b) clk) -> 
---                        (s : SamplStr a clk) -> 
---                        (WellFormed fs) -> 
---                        (WellFormed s) -> 
---                        (WellFormed (sp_extend fs s)) 
--- sp_extend_wellformed fs s wf_fs wf_xs = ?sp_extend_wellformed_rhs
+sp_extend_wellformed : (fs : SamplStr (a->b) clk) -> 
+                       (s : SamplStr a clk) -> 
+                       (WellFormed fs) -> 
+                       (WellFormed s) -> 
+                       (WellFormed (sp_extend fs s)) 
+sp_extend_wellformed fs s wf_fs wf_xs = ?sp_extend_wellformed_rhs
 
 
