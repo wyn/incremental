@@ -27,8 +27,6 @@ cconst : a -> CStream a
 cconst x = Cons x (cconst x)
 
 
--- data EqSt : (s1 : CStream a) -> (s2 : CStream a) -> Type where
---   EqStream : (head_prf : hd s1 = hd s2) -> (tail_prf : (EqSt (tl s1) (tl s2))) -> EqSt s1 s2
 head_bad : (cont : (x = y) -> Void) -> (Cons x xs = Cons y ys) -> Void
 head_bad cont Refl = cont Refl
 
@@ -37,13 +35,12 @@ tail_bad cont Refl = cont Refl
 
 (DecEq a) => DecEq (CStream a) where
     decEq (Cons x xs) (Cons y ys) with (decEq x y) 
+      decEq (Cons x xs) (Cons y ys)   | No cont             = No (head_bad cont)
       decEq (Cons x xs) (Cons x ys)   | Yes Refl with (decEq xs ys) 
         decEq (Cons x xs) (Cons x xs) | Yes Refl | Yes Refl = Yes Refl
         decEq (Cons x xs) (Cons x ys) | Yes Refl | No cont  = No (tail_bad cont)
 
-      decEq (Cons x xs) (Cons y ys)   | No cont             = No (head_bad cont)
 
-    
 stream_unfold : (x : CStream a) -> (x = (Cons (hd x) (tl x)))
 stream_unfold (Cons x xs) = Refl
 
@@ -54,16 +51,15 @@ data SamplElt : (a : Type) -> Bool -> Type where
   CFail : SamplElt a True
 
 
-no_prf : (cont : (x = y) -> Void) -> (CAny x = CAny y) -> Void
-no_prf cont Refl = cont Refl
+bad_any_prf : (cont : (x = y) -> Void) -> (CAny x = CAny y) -> Void
+bad_any_prf cont Refl = cont Refl
 
 (DecEq a) => DecEq (SamplElt a bl) where
-   
     decEq CNone CNone = Yes Refl
     decEq CFail CFail = Yes Refl
     decEq (CAny x) (CAny y) = case (decEq x y) of
                 Yes prf => Yes (cong prf)
-                No cont => No (no_prf cont)
+                No cont => No (bad_any_prf cont)
     decEq x y = No (believe_me x y)
     
 Clock : Type
@@ -77,44 +73,46 @@ sp_hd : SamplStr a c -> SamplElt a (hd c)
 sp_hd (SPCons x _) = x
 
 sp_tl : SamplStr a c -> SamplStr a (tl c)
-sp_tl (SPCons _ y) = y
+sp_tl (SPCons _ xs) = xs
 
 
 unfold_samplStr : (c : Clock) -> (s : SamplStr a c) -> (s = (SPCons (sp_hd s) (sp_tl s)))
-unfold_samplStr c (SPCons x y) = Refl
+unfold_samplStr c (SPCons x xs) = Refl
+
+bad_head_stream : (cont : (x = y) -> Void) -> 
+                  (SPCons x xs = SPCons y ys) -> Void
+bad_head_stream cont Refl = cont Refl
+
+bad_tail_stream : (cont : (xs = ys) -> Void) -> 
+                  (SPCons x xs = SPCons x ys) -> Void
+bad_tail_stream cont Refl = cont Refl
 
 
+(DecEq a) => DecEq (SamplStr a c) where
+     decEq (SPCons x xs) (SPCons y ys) with (decEq x y) 
+      decEq (SPCons x xs) (SPCons y ys) | No cont = No (bad_head_stream cont)
+      decEq (SPCons x xs) (SPCons x ys) | Yes Refl with (decEq xs ys) 
+        decEq (SPCons x xs) (SPCons x xs) | Yes Refl | Yes Refl = Yes Refl
+        decEq (SPCons x xs) (SPCons x ys) | Yes Refl | No cont  = No (bad_tail_stream cont)
 
--- data SpEq : (s1 : SamplStr a c1) -> (s2 : SamplStr a c2) -> Type where
---   SpEqProof : (sp_hd s1 = sp_hd s2) -> (SpEq (sp_tl s1) (sp_tl s2)) -> SpEq s1 s2
 
--- prf_samplElt : (a : Type ) -> (c1 : Clock) -> (c2 : Clock) -> (head_prf : hd c1 = hd c2) -> 
---                (SamplElt a (hd c1) = SamplElt a (hd c2))
--- prf_samplElt a c1 c2 head_prf = rewrite head_prf in Refl
+prf_samplElt : (a : Type ) -> (c1 : Clock) -> (c2 : Clock) -> (head_prf : hd c1 = hd c2) -> 
+               (SamplElt a (hd c1) = SamplElt a (hd c2))
+prf_samplElt a c1 c2 head_prf = rewrite head_prf in Refl
 
 
--- head_coerce : (head_prf : hd c1 = hd c2) -> (x : SamplElt a (hd c1)) -> SamplElt a (hd c2)
--- head_coerce {a} {c1} {c2} head_prf x = let prf = prf_samplElt a c1 c2 head_prf in 
---                                        rewrite sym $ prf in x
+head_coerce : (head_prf : hd c1 = hd c2) -> (x : SamplElt a (hd c1)) -> SamplElt a (hd c2)
+head_coerce {a} {c1} {c2} head_prf x = let prf = prf_samplElt a c1 c2 head_prf in 
+                                       rewrite sym $ prf in x
 
--- clock_coerce : (EqSt c1 c2) -> SamplStr a c1 -> SamplStr a c2
--- clock_coerce (EqStream head_prf tail_prf) (SPCons x xs) = SPCons (head_coerce head_prf x) (clock_coerce tail_prf xs)
+clock_coerce : (prf : c1 = c2) -> SamplStr a c1 -> SamplStr a c2
+clock_coerce Refl x = x
 
--- sp_eq_clock_coerce : (prf : (EqSt c1 c2)) -> (s : SamplStr a c1) -> (SpEq s (clock_coerce prf s))
--- sp_eq_clock_coerce {a} {c1} {c2} (EqStream head_prf tail_prf) (SPCons x xs) = believe_me (EqStream head_prf tail_prf) (SPCons x xs)
---   -- let prf_elt = prf_samplElt a c1 c2 head_prf in 
---   --   case (sp_eq_clock_coerce tail_prf xs) of
---   --     SpEqProof inner_head_prf inner_tail_prf => 
---   --       SpEqProof ?stuff_head ?
-  
+sp_eq_clock_coerce : (prf : (c1 = c2)) -> (s : SamplStr a c1) -> (s = (clock_coerce prf s))
+sp_eq_clock_coerce Refl s = Refl
 
--- -- is_fail : (s : SamplElt a b) -> Dec (s = the (SamplElt a True) CFail)
--- -- is_fail CFail = Yes Refl
--- -- is_fail _ = No ?rest1
-
--- -- data SpWf : (SamplStr a c) -> Type where
--- --   SpWfProof : (s : SamplStr a c) -> 
--- --               (is_no_fail (sp_hd s)) ->
--- --               (sp_wf (sp_tl s)) -> sp_wf s
+data WellFormed : (s : SamplStr a c) -> Type where
+  HeadIsAny : ((sp_hd s) = (CAny a)) -> WellFormed (sp_tl s) -> WellFormed s
+  HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
   
  
