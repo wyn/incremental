@@ -116,10 +116,37 @@ data WellFormed : (s : SamplStr a c) -> Type where
   HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
   
 
--- elt_const : a -> (b : Bool) -> SamplElt a Bool
--- elt_const {b} x = case b of 
---   True  => CAny x
---   False => CNone
+elt_const : a -> (b : Bool) -> SamplElt a b
+elt_const x clk_val = case clk_val of 
+  True  => CAny x
+  False => CNone
 
--- sp_const : a -> SamplStr a clk
--- sp_const x {clk} = SPCons (elt_const x (sp_hd clk)) (sp_const x) 
+sp_const : a -> (clk : Clock) -> SamplStr a clk
+sp_const x (Cons c cs) = SPCons (elt_const x c) (sp_const x cs)
+
+sp_const_wellformed : (x : a) -> (clk : Clock) -> WellFormed (sp_const x clk)
+sp_const_wellformed x (Cons c cs) = believe_me x (Cons c cs) 
+
+-- with (WellFormed (sp_const x clk))
+  -- (sp_const_wellformed x (Cons (CAny x') cs)) | (HeadIsAny  Refl rest) = ?sp_const_wellformed_rhs_1
+  -- (sp_const_wellformed x clk)                 | (HeadIsNone Refl rest) = ?sp_const_wellformed_rhs_2
+
+
+elt_extend : (SamplElt (a -> b) clk_value) -> (SamplElt a clk_value) -> (SamplElt b clk_value)
+elt_extend CNone    _        = CNone
+elt_extend (CAny f) (CAny x) = CAny (f x)
+elt_extend _        CFail    = CFail 
+elt_extend CFail    _        = CFail
+
+sp_extend : (SamplStr (a -> b) clk_value) -> (SamplStr a clk_value) -> (SamplStr b clk_value)
+sp_extend (SPCons f fs) (SPCons x xs) = SPCons (elt_extend f x) (sp_extend fs xs)
+
+
+sp_extend_wellformed : (fs : SamplStr (a->b) clk) -> 
+                       (s : SamplStr a clk) -> 
+                       (WellFormed fs) -> 
+                       (WellFormed s) -> 
+                       (WellFormed (sp_extend fs s)) 
+sp_extend_wellformed fs s wf_fs wf_xs = ?sp_extend_wellformed_rhs
+
+
