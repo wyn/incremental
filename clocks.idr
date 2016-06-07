@@ -115,4 +115,11 @@ data WellFormed : (s : SamplStr a c) -> Type where
   HeadIsAny : ((sp_hd s) = (CAny a)) -> WellFormed (sp_tl s) -> WellFormed s
   HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
   
- 
+
+-- elt_const : a -> (b : Bool) -> SamplElt a Bool
+-- elt_const {b} x = case b of 
+--   True  => CAny x
+--   False => CNone
+
+-- sp_const : a -> SamplStr a clk
+-- sp_const x {clk} = SPCons (elt_const x (sp_hd clk)) (sp_const x) 
