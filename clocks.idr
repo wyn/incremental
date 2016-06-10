@@ -42,8 +42,13 @@ tail_bad cont Refl = cont Refl
         decEq (Cons x (Delay xs)) (Cons x (Delay xs)) | Yes Refl | Yes Refl = Yes Refl
         decEq (Cons x (Delay xs)) (Cons x (Delay ys)) | Yes Refl | No cont  = No (tail_bad cont)
 
-stream_unfold : (x : CStream a) -> (x = (Cons (hd x) (tl x)))
-stream_unfold (Cons x xs) = ?stream_unfold_rhs_1
+-- delay_force_prf : (Cons x (Delay xs)) = Cons x (Delay (Force xs))
+-- stream_unfold_rhs_1 : (prf : Force xs = Cons (hd (Force xs)) (Delay (tl (Force xs)))) -> 
+--                       Cons x xs = Cons x (Delay (tl (Cons x xs)))
+
+stream_unfold : (s : CStream a) -> (s = (Cons (hd s) (tl s)))
+stream_unfold (Cons x xs) = let prf = stream_unfold xs in 
+                            ?stream_unfold_rhs_1 prf
 
 
 data SamplElt : (a : Type) -> Bool -> Type where
