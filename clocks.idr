@@ -268,3 +268,21 @@ sp_if_equiv_prf : (lc : SamplStr Bool clk) -> (x : SamplStr a clk) -> (y : Sampl
                   (WellFormed x) ->
                   (WellFormed y) ->
                   (sp_if lc x y) = (sp_merge lc (sp_when lc x) (sp_when (sp_not lc) y)) 
+
+
+sp_arrow : SamplStr a clk -> SamplStr a clk -> SamplStr a clk
+sp_arrow {clk = (Cons c cs)} (SPCons x xs) (SPCons y ys) = SPCons x (if c then ys else (sp_arrow xs ys))
+
+sp_delay : (SamplStr a clk) -> (SamplElt a True) -> SamplStr a clk
+sp_delay {clk = (Cons False cs)} (SPCons x xs) init = SPCons CNone (sp_delay xs init)
+sp_delay {clk = (Cons True cs)} (SPCons x xs)  init = SPCons init (sp_delay xs x)
+
+sp_pre : SamplStr a clk -> SamplStr a clk
+sp_pre s = sp_delay s CFail 
+
+sp_fby : SamplStr a clk -> SamplStr a clk -> SamplStr a clk
+sp_fby x y = sp_arrow x (sp_pre y)
+
+arrow_equiv_prf : (x : SamplStr a clk) -> (y : SamplStr a clk) -> 
+                  WellFormed x -> WellFormed y ->
+                  (sp_arrow x y) = (sp_if (sp_fby (sp_const True clk) (sp_const False clk)) x y)
