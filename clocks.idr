@@ -208,19 +208,18 @@ elt_merge : (o : SamplElt Bool clk_value) ->
             (SamplElt a (elt_on (elt_extend (elt_const Clocks.flip_bool clk_value) o))) ->
             SamplElt a clk_value            
 elt_merge CNone        x y = CNone
-elt_merge (CAny False) x y = believe_me y -- ?elt_merge_prf
-elt_merge (CAny True)  x y = x
+elt_merge (CAny False) x y = y
+elt_merge (CAny True)  x y = x -- elt_on (CAny True)
 elt_merge CFail        x y = CFail
 
 sp_merge : (lc : SamplStr Bool clk) -> 
            SamplStr a (sp_on lc) -> 
            SamplStr a (sp_on (sp_not lc)) -> 
            SamplStr a clk
-sp_merge (c :: cs) (x :: xs) (y :: ys) = ?sp_merge_rhs_2
+sp_merge (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x ?ything) :: (sp_merge cs xs ?ysthings)
 
-
-
---sp_merge (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x y) :: (sp_merge cs xs ys) 
+ 
+--   (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x y) :: (sp_merge cs xs ys) 
 
 
 -- sp_if_equiv_prf : (lc : SamplStr Bool clk) -> (x : SamplStr a clk) -> (y : SamplStr a clk) ->
