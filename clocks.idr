@@ -19,28 +19,27 @@ funPower_commutes f (S k) x = let ff = funPower_commutes f k (f x) in
 -- dont think we can have DecEq for streams??
 -- use equivalence instead
 -- infixl 9 =~=
-data Equiv : Stream a -> Stream a -> Type where
-  Cons :  (head_prf : a = b) -> Inf (Equiv as bs) -> Equiv (a :: as) (b :: bs)  
--- data (=~=) : Stream a -> Stream a -> Type where
---   (::) : a = b -> Inf (as =~= bs) -> (a :: as =~= b :: bs)
+-- data Equiv : Stream a -> Stream a -> Type where
+--   Cons :  (head_prf : a = b) -> Inf (Equiv as bs) -> Equiv (a :: as) (b :: bs)  
   
 
-stream_unfold : (DecEq a) => (s : Stream a) -> Equiv s (( head s ) :: ( tail s ))
-stream_unfold (x :: xs) with (decEq x (head (x :: xs)))
-  stream_unfold (x :: xs) | (Yes prf) = ?stream_unfold_rhs_1_rhs_3
-  stream_unfold (x :: xs) | (No contra) = ?stream_unfold_rhs_1_rhs_4
+-- stream_unfold : (DecEq a) => (s : Stream a) -> Equiv s (( head s ) :: ( tail s ))
+-- stream_unfold (x :: xs) with (decEq x (head (x :: xs)))
+--   stream_unfold (x :: xs) | (Yes prf) = ?stream_unfold_rhs_1_rhs_3
+--   stream_unfold (x :: xs) | (No contra) = ?stream_unfold_rhs_1_rhs_4
+
+data Clk = Tick | Tock
+    
+data SamplElt : (a : Type) -> Clk -> Type where
+  CNone : SamplElt a Tock
+  CAny  : a -> SamplElt a Tick
+  CFail : SamplElt a Tick
 
 
-data SamplElt : (a : Type) -> Bool -> Type where
-  CNone : SamplElt a False
-  CAny  : a -> SamplElt a True
-  CFail : SamplElt a True
-
-
-bad_any_fail_prf : (clk : Bool) -> (CAny x = CFail) -> Void
+bad_any_fail_prf : (clk : Clk) -> (CAny x = CFail) -> Void
 bad_any_fail_prf _ Refl impossible
 
-bad_fail_any_prf : (clk : Bool) -> (CFail = CAny x) -> Void
+bad_fail_any_prf : (clk : Clk) -> (CFail = CAny x) -> Void
 bad_fail_any_prf _ Refl impossible
 
 bad_any_prf : (cont : (x = y) -> Void) -> (CAny x = CAny y) -> Void
@@ -52,8 +51,8 @@ bad_any_prf cont Refl = cont Refl
     decEq (CAny x) (CAny y) = case (decEq x y) of
                 Yes prf => Yes (cong prf)
                 No cont => No (bad_any_prf cont)
-    decEq {clk=True} (CAny x) CFail = No (bad_any_fail_prf True)
-    decEq {clk=True} CFail (CAny y) = No (bad_fail_any_prf True)
+    decEq {clk=Tick} (CAny x) CFail = No (bad_any_fail_prf Tick)
+    decEq {clk=Tick} CFail (CAny y) = No (bad_fail_any_prf Tick)
     
     decEq CNone CFail    impossible
     decEq CFail CNone    impossible
@@ -62,7 +61,7 @@ bad_any_prf cont Refl = cont Refl
     
     
 Clock : Type
-Clock = Stream Bool
+Clock = Stream Clk
 
 data SamplStr : (a : Type) -> (c : Clock) -> Type where
   (::) : (SamplElt a (head c)) -> Inf (SamplStr a (tail c)) -> SamplStr a c
@@ -110,125 +109,142 @@ using (c1 : Clock, c2 : Clock)
 -- --   IsNotFail : (prf : True = is_not_fail (sp_hd s)) -> WellFormed (sp_tl s) -> WellFormed s
 
 
--- -- data WellFormed : (s : SamplStr a c) -> Type where
--- --   HeadIsAny : ((sp_hd s) = (CAny a)) -> WellFormed (sp_tl s) -> WellFormed s
--- --   HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
+data WellFormed : (s : SamplStr a c) -> Type where
+  HeadIsAny : ((sp_hd s) = (CAny a)) -> WellFormed (sp_tl s) -> WellFormed s
+  HeadIsNone : ((sp_hd s) = CNone) -> WellFormed (sp_tl s) -> WellFormed s
   
 
--- -- elt_const : a -> (b : Bool) -> SamplElt a b
--- -- elt_const x clk_val = case clk_val of 
--- --   True  => CAny x
--- --   False => CNone
+elt_const : a -> (clk_value : Clk) -> SamplElt a clk_value
+elt_const x clk_value = case clk_value of 
+  Tick   => CAny x
+  Tock => CNone
 
 
--- -- sp_const : a -> (clk : Clock) -> SamplStr a clk
--- -- sp_const x (Cons c cs) = SPCons (elt_const x c) (Delay (sp_const x cs))
+sp_const : a -> (clk : Clock) -> SamplStr a clk
+sp_const x (c :: cs) = (elt_const x c) :: (sp_const x cs)
 
 
--- -- sp_const_wellformed : (x : a) -> (clk : Clock) -> WellFormed (sp_const a clk)
--- -- sp_const_wellformed x (Cons c cs) = let rest = (sp_const_wellformed x cs) in 
--- --                                     case elt_const x c of
--- --                                     CAny x' => ?head_any_prf rest
--- --                                     CNone  =>  ?head_non_prf
--- --                                     CFail => ?head_fail_prf
+-- sp_const_wellformed : (x : a) -> (clk : Clock) -> WellFormed (sp_const a clk)
+-- sp_const_wellformed x (Cons c cs) = let rest = (sp_const_wellformed x cs) in 
+--                                     case elt_const x c of
+--                                     CAny x' => ?head_any_prf rest
+--                                     CNone  =>  ?head_non_prf
+--                                     CFail => ?head_fail_prf
 
--- -- elt_extend : (SamplElt (a -> b) clk_value) -> (SamplElt a clk_value) -> (SamplElt b clk_value)
--- -- elt_extend CNone    _        = CNone
--- -- elt_extend (CAny f) (CAny x) = CAny (f x)
--- -- elt_extend _        CFail    = CFail 
--- -- elt_extend CFail    _        = CFail
+elt_extend : (SamplElt (a -> b) clk_value) -> (SamplElt a clk_value) -> (SamplElt b clk_value)
+elt_extend CNone    _        = CNone
+elt_extend (CAny f) (CAny x) = CAny (f x)
+elt_extend _        CFail    = CFail 
+elt_extend CFail    _        = CFail
 
--- -- sp_extend : (SamplStr (a -> b) clk) -> (SamplStr a clk) -> (SamplStr b clk)
--- -- sp_extend (SPCons f fs) (SPCons x xs) = SPCons (elt_extend f x) (sp_extend fs xs)
-
-
--- -- sp_extend_wellformed : (fs : SamplStr (a->b) clk) -> 
--- --                        (s : SamplStr a clk) -> 
--- --                        (WellFormed fs) -> 
--- --                        (WellFormed s) -> 
--- --                        (WellFormed (sp_extend fs s)) 
--- -- sp_extend_wellformed fs s wf_fs wf_xs = ?sp_extend_wellformed_rhs
+sp_extend : (SamplStr (a -> b) clk) -> (SamplStr a clk) -> (SamplStr b clk)
+sp_extend (f :: fs) (x :: xs) = (elt_extend f x) :: (sp_extend fs xs)
 
 
--- -- sp_extend_const_prf : (f : a -> b) -> (x : a) -> (sp_extend (sp_const f clk) (sp_const x clk)) = sp_const (f x) clk 
--- -- sp_extend_const_prf f x = ?sp_extend_const_prf_rhs
-
--- -- sp_extend_id_prf : (x : SamplStr a clk) -> (sp_extend (sp_const id clk) x) = x
--- -- sp_extend_id_prf x = ?sp_extend_id_prf_rhs
-
--- -- sp_extend_comp_prf : (f : a -> b) -> (g : b -> c) -> (x : SamplStr a clk) ->
--- --                      (sp_extend (sp_const g clk) (sp_extend (sp_const f clk) x)) = (sp_extend (sp_const (g . f) clk) x)
--- -- sp_extend_comp_prf f g (SPCons x xs) = ?sp_extend_comp_prf_rhs_1
+-- sp_extend_wellformed : (fs : SamplStr (a->b) clk) -> 
+--                        (s : SamplStr a clk) -> 
+--                        (WellFormed fs) -> 
+--                        (WellFormed s) -> 
+--                        (WellFormed (sp_extend fs s)) 
+-- sp_extend_wellformed fs s wf_fs wf_xs = ?sp_extend_wellformed_rhs
 
 
--- -- flip_bool : Bool -> Bool
--- -- flip_bool False = True
--- -- flip_bool True = False
+-- sp_extend_const_prf : (f : a -> b) -> (x : a) -> (sp_extend (sp_const f clk) (sp_const x clk)) = sp_const (f x) clk 
+-- sp_extend_const_prf f x = ?sp_extend_const_prf_rhs
 
--- -- sp_not :(SamplStr Bool clk) -> (SamplStr Bool clk)
--- -- sp_not {clk} = sp_extend (sp_const flip_bool clk)
+-- sp_extend_id_prf : (x : SamplStr a clk) -> (sp_extend (sp_const id clk) x) = x
+-- sp_extend_id_prf x = ?sp_extend_id_prf_rhs
 
--- -- sp_not2_id_prf : (lc : SamplStr Bool clk) -> (sp_not (sp_not lc)) = lc
-
--- -- if_then_else : Bool -> a -> a -> a
--- -- if_then_else cond x y = if cond then x else y
-
--- -- sp_if : SamplStr Bool clk -> SamplStr a clk -> SamplStr a clk -> SamplStr a clk
--- -- sp_if {clk} lc x y = sp_extend (sp_extend (sp_extend (sp_const if_then_else clk) lc) x) y
-
--- -- elt_on : SamplElt Bool b -> Bool
--- -- elt_on CNone = False
--- -- elt_on (CAny x) = x
--- -- elt_on CFail = True
-
--- -- sp_on : SamplStr Bool clk -> Clock
--- -- sp_on (SPCons x xs) = Cons (elt_on x) (sp_on xs)
-
--- -- elt_when : (o : SamplElt Bool clk_value) -> SamplElt a clk_value -> SamplElt a (elt_on o)                               
--- -- elt_when CNone        e = CNone
--- -- elt_when (CAny False) e = CNone
--- -- elt_when (CAny True)  e = e
--- -- elt_when CFail        e = CFail
-
--- -- sp_when : (lc : SamplStr Bool clk) -> SamplStr a clk -> SamplStr a (sp_on lc)
--- -- sp_when (SPCons c cs) (SPCons x xs) = SPCons (elt_when c x) (sp_when cs xs) 
+-- sp_extend_comp_prf : (f : a -> b) -> (g : b -> c) -> (x : SamplStr a clk) ->
+--                      (sp_extend (sp_const g clk) (sp_extend (sp_const f clk) x)) = (sp_extend (sp_const (g . f) clk) x)
+-- sp_extend_comp_prf f g (SPCons x xs) = ?sp_extend_comp_prf_rhs_1
 
 
--- -- elt_merge : (o : SamplElt Bool clk_value) -> 
--- --             (SamplElt a (elt_on o)) -> 
--- --             (SamplElt a (elt_on (elt_extend (elt_const flip_bool clk_value) o))) ->
--- --             SamplElt a clk_value            
--- -- elt_merge CNone        x y = CNone
--- -- elt_merge (CAny False) x y = ?elt_merge_rhs_1
--- -- elt_merge (CAny True)  x y = x
--- -- elt_merge CFail        x y = CFail
+flip_bool : Bool -> Bool
+flip_bool False = True
+flip_bool True = False
 
--- -- sp_merge : (lc : SamplStr Bool clk) -> 
--- --            SamplStr a (sp_on lc) -> 
--- --            SamplStr a (sp_on (sp_not lc)) -> 
--- --            SamplStr a clk
--- -- sp_merge (SPCons c cs) (SPCons x xs) (SPCons y ys) = ?sp_merge_rhs  --SPCons (elt_merge c x y) (sp_merge cs xs ys) 
+bool_to_clk : Bool -> Clk
+bool_to_clk True = Tick
+bool_to_clk False = Tock
+
+clk_to_bool : Clk -> Bool
+clk_to_bool Tick = True
+clk_to_bool Tock = False
+
+sp_not :(SamplStr Bool clk) -> (SamplStr Bool clk)
+sp_not {clk} = sp_extend (sp_const flip_bool clk)
+
+if_then_else : Bool -> a -> a -> a
+if_then_else cond x y = if cond then x else y
+
+sp_if : SamplStr Bool clk -> SamplStr a clk -> SamplStr a clk -> SamplStr a clk
+sp_if {clk} lc x y = sp_extend (sp_extend (sp_extend (sp_const if_then_else clk) lc) x) y
+
+elt_on : SamplElt Bool clk_value -> Clk
+elt_on CNone = Tock
+elt_on (CAny x) = bool_to_clk x
+elt_on CFail = Tick
+
+sp_on : SamplStr Bool clk -> Clock
+sp_on (x :: xs) = (elt_on x) :: (sp_on xs)
+
+elt_when : (o : SamplElt Bool clk_value) -> 
+           SamplElt a clk_value -> 
+           SamplElt a (elt_on o)                               
+elt_when CNone        e = CNone
+elt_when (CAny False) e = CNone
+elt_when (CAny True)  e = e
+elt_when CFail        e = CFail
+
+sp_when : (lc : SamplStr Bool clk) -> SamplStr a clk -> SamplStr a (sp_on lc)
+sp_when (c :: cs) (x :: xs) = (elt_when c x) :: (sp_when cs xs) 
+
+-- flip_bool_prf : (elt_on (elt_extend (elt_const flip_bool Tick) (CAny False))) = Tick
 
 
--- -- sp_if_equiv_prf : (lc : SamplStr Bool clk) -> (x : SamplStr a clk) -> (y : SamplStr a clk) ->
--- --                   (WellFormed x) ->
--- --                   (WellFormed y) ->
--- --                   (sp_if lc x y) = (sp_merge lc (sp_when lc x) (sp_when (sp_not lc) y)) 
+elt_merge : (o : SamplElt Bool clk_value) -> 
+            (SamplElt a (elt_on o)) -> 
+            (SamplElt a (elt_on (elt_extend (elt_const Clocks.flip_bool clk_value) o))) ->
+            SamplElt a clk_value            
+elt_merge CNone        x y = CNone
+elt_merge (CAny False) x y = believe_me y -- ?elt_merge_prf
+elt_merge (CAny True)  x y = x
+elt_merge CFail        x y = CFail
+
+sp_merge : (lc : SamplStr Bool clk) -> 
+           SamplStr a (sp_on lc) -> 
+           SamplStr a (sp_on (sp_not lc)) -> 
+           SamplStr a clk
+sp_merge (c :: cs) (x :: xs) (y :: ys) = ?sp_merge_rhs_2
 
 
--- -- sp_arrow : SamplStr a clk -> SamplStr a clk -> SamplStr a clk
--- -- sp_arrow {clk = (Cons c cs)} (SPCons x xs) (SPCons y ys) = SPCons x (if c then ys else (sp_arrow xs ys))
 
--- -- sp_delay : (SamplStr a clk) -> (SamplElt a True) -> SamplStr a clk
--- -- sp_delay {clk = (Cons False cs)} (SPCons x xs) init = SPCons CNone (sp_delay xs init)
--- -- sp_delay {clk = (Cons True cs)} (SPCons x xs)  init = SPCons init (sp_delay xs x)
+--sp_merge (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x y) :: (sp_merge cs xs ys) 
 
--- -- sp_pre : SamplStr a clk -> SamplStr a clk
--- -- sp_pre s = sp_delay s CFail 
 
--- -- sp_fby : SamplStr a clk -> SamplStr a clk -> SamplStr a clk
--- -- sp_fby x y = sp_arrow x (sp_pre y)
+-- sp_if_equiv_prf : (lc : SamplStr Bool clk) -> (x : SamplStr a clk) -> (y : SamplStr a clk) ->
+--                   (WellFormed x) ->
+--                   (WellFormed y) ->
+--                   (sp_if lc x y) = (sp_merge lc (sp_when lc x) (sp_when (sp_not lc) y)) 
 
--- -- arrow_equiv_prf : (x : SamplStr a clk) -> (y : SamplStr a clk) -> 
--- --                   WellFormed x -> WellFormed y ->
--- --                   (sp_arrow x y) = (sp_if (sp_fby (sp_const True clk) (sp_const False clk)) x y)
+-- chooses xs until clock ticks, then chooses ys
+sp_arrow : SamplStr a clk -> SamplStr a clk -> SamplStr a clk
+sp_arrow {clk = (c :: cs)} (x :: xs) (y :: ys) 
+  = x :: (if (clk_to_bool c) then ys else (sp_arrow xs ys))
+
+-- delay by one Clk element - if the clock ticks then initialised with init
+-- else initialise with none and recurse with rest of x :: xs
+sp_delay : (SamplStr a clk) -> (SamplElt a Tick) -> SamplStr a clk
+sp_delay {clk = (Tick :: cs)} (x :: xs) init = init  :: (sp_delay xs x)
+sp_delay {clk = (Tock :: cs)} (x :: xs) init = CNone :: (sp_delay xs init)
+
+sp_pre : SamplStr a clk -> SamplStr a clk
+sp_pre s = sp_delay s CFail 
+
+sp_fby : SamplStr a clk -> SamplStr a clk -> SamplStr a clk
+sp_fby x y = sp_arrow x (sp_pre y)
+
+-- arrow_equiv_prf : (x : SamplStr a clk) -> (y : SamplStr a clk) -> 
+--                   WellFormed x -> WellFormed y ->
+--                   (sp_arrow x y) = (sp_if (sp_fby (sp_const True clk) (sp_const False clk)) x y)
