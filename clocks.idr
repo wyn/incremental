@@ -77,6 +77,7 @@ sp_tl : SamplStr a c -> SamplStr a (tail c)
 sp_tl (_ :: xs) = xs
 
 
+
 using (c1 : Clock, c2 : Clock)
   prf_samplElt : (a : Type ) -> (c1 : Clock) -> (c2 : Clock) -> 
                  (head_prf : head c1 = head c2) -> 
@@ -93,6 +94,12 @@ using (c1 : Clock, c2 : Clock)
 
   sp_eq_clock_coerce : (prf : (c1 = c2)) -> (s : SamplStr a c1) -> (s = (clock_coerce prf s))
   sp_eq_clock_coerce Refl s = Refl
+
+-- DecEq (SamplElt a (head c)) => DecEq (SamplStr a c) where
+--     decEq (x::xs) (y::ys) with (decEq x y)
+--       decEq (x::xs) (y::ys) | Yes prf = ?DecEq_rhs_1_rhs_1
+--       decEq (x::xs) (y::ys) | No cong = No ?DecEq_rhs_1_rhs_3
+
 
 -- -- doesnt work becasue Bool is different but only one clk
 -- -- notFails : a -> Vect 2 (SamplElt a clk)
@@ -189,6 +196,9 @@ elt_on CFail = Tick
 sp_on : SamplStr Bool clk -> Clock
 sp_on (x :: xs) = (elt_on x) :: (sp_on xs)
 
+head_sp_on_prf : (head (sp_on s)) = (elt_on (sp_hd s))
+head_sp_on_prf = ?head_sp_on_prf_rhs1
+
 elt_when : (o : SamplElt Bool clk_value) -> 
            SamplElt a clk_value -> 
            SamplElt a (elt_on o)                               
@@ -216,9 +226,16 @@ sp_merge : (lc : SamplStr Bool clk) ->
            SamplStr a (sp_on lc) -> 
            SamplStr a (sp_on (sp_not lc)) -> 
            SamplStr a clk
-sp_merge (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x ?ything) :: (sp_merge cs xs ?ysthings)
+sp_merge (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x y) :: (sp_merge cs xs ?ysthings)
+             -- Type mismatch between
+             --         SamplElt a
+             --                  (head (sp_on (sp_extend (sp_const flip_bool clk)
+             --                                          (c :: cs)))) (Type of y)
+             -- and
+             --         SamplElt a
+             --                  (elt_on (elt_extend (elt_const flip_bool (head clk))
+             --                                      c)) (Expected type)
 
- 
 --   (c :: cs) (x :: xs) (y :: ys) = (elt_merge c x y) :: (sp_merge cs xs ys) 
 
 
